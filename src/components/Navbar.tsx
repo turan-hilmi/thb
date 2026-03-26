@@ -23,7 +23,9 @@ export default function Navbar({ user }: NavbarProps) {
 
   const navLinks = [
     { href: "/dashboard", label: "Projeler", icon: FolderOpen },
-    ...(user.role === "admin" ? [{ href: "/dashboard/users", label: "Kullanıcı Yönetimi", icon: Users }] : []),
+    ...(user.role === "admin" ? [
+      { href: "/dashboard/admin", label: "Admin Panel", icon: Users },
+    ] : []),
   ];
 
   return (
