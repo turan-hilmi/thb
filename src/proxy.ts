@@ -5,7 +5,7 @@ const secret = new TextEncoder().encode(
   process.env.AUTH_SECRET || "default-secret-key"
 );
 
-const publicPaths = ["/login", "/register", "/api/auth/login", "/api/auth/register"];
+const publicPaths = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/api/setup"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
