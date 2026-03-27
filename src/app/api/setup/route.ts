@@ -7,10 +7,10 @@ export async function GET() {
   const authToken = process.env.DATABASE_AUTH_TOKEN;
 
   if (!url) {
-    return NextResponse.json({ success: false, error: "DATABASE_URL not set" }, { status: 500 });
+    return NextResponse.json({ success: false, error: "DATABASE_URL not set", url: "EMPTY" }, { status: 500 });
   }
 
-  const db = createClient({ url, authToken });
+  return NextResponse.json({ debug: true, urlStart: url.substring(0, 30), hasAuthToken: !!authToken });
 
   try {
     const tables = [
