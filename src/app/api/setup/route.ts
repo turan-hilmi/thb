@@ -10,7 +10,7 @@ export async function GET() {
     return NextResponse.json({ success: false, error: "DATABASE_URL not set", url: "EMPTY" }, { status: 500 });
   }
 
-  return NextResponse.json({ debug: true, urlStart: url.substring(0, 30), hasAuthToken: !!authToken });
+  const db = createClient({ url, authToken });
 
   try {
     const tables = [
