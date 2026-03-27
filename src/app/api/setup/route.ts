@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth";
+import { createClient } from "@libsql/client";
+import bcryptjs from "bcryptjs";
 
 export async function GET() {
+  const url = process.env.DATABASE_URL;
+  const authToken = process.env.DATABASE_AUTH_TOKEN;
+
+  if (!url) {
+    return NextResponse.json({ success: false, error: "DATABASE_URL not set" }, { status: 500 });
+  }
+
+  const db = createClient({ url, authToken });
+
   try {
-    // Create all tables
-    await prisma.$executeRawUnsafe(`
+    await db.executeMultiple(`
       CREATE TABLE IF NOT EXISTS "User" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "email" TEXT NOT NULL UNIQUE,
@@ -16,10 +24,7 @@ export async function GET() {
         "subscriptionEnd" DATETIME,
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await prisma.$executeRawUnsafe(`
+      );
       CREATE TABLE IF NOT EXISTS "Project" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "name" TEXT NOT NULL,
@@ -39,10 +44,7 @@ export async function GET() {
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE
-      )
-    `);
-
-    await prisma.$executeRawUnsafe(`
+      );
       CREATE TABLE IF NOT EXISTS "Owner" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "name" TEXT NOT NULL,
@@ -54,10 +56,7 @@ export async function GET() {
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE
-      )
-    `);
-
-    await prisma.$executeRawUnsafe(`
+      );
       CREATE TABLE IF NOT EXISTS "Share" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "pay" INTEGER NOT NULL,
@@ -65,10 +64,7 @@ export async function GET() {
         "ownerId" TEXT NOT NULL,
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("ownerId") REFERENCES "Owner"("id") ON DELETE CASCADE
-      )
-    `);
-
-    await prisma.$executeRawUnsafe(`
+      );
       CREATE TABLE IF NOT EXISTS "Attorney" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "name" TEXT NOT NULL,
@@ -76,10 +72,7 @@ export async function GET() {
         "projectId" TEXT NOT NULL,
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE
-      )
-    `);
-
-    await prisma.$executeRawUnsafe(`
+      );
       CREATE TABLE IF NOT EXISTS "Section" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "order" INTEGER NOT NULL DEFAULT 0,
@@ -95,10 +88,7 @@ export async function GET() {
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE
-      )
-    `);
-
-    await prisma.$executeRawUnsafe(`
+      );
       CREATE TABLE IF NOT EXISTS "SectionOwner" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "sectionId" TEXT NOT NULL,
@@ -107,31 +97,28 @@ export async function GET() {
         UNIQUE("sectionId", "ownerId"),
         FOREIGN KEY ("sectionId") REFERENCES "Section"("id") ON DELETE CASCADE,
         FOREIGN KEY ("ownerId") REFERENCES "Owner"("id") ON DELETE CASCADE
-      )
+      );
     `);
 
-    // Seed admin user
-    const existing = await prisma.user.findUnique({
-      where: { email: "admin@katirtifaki.net" },
+    // Check if admin exists
+    const existing = await db.execute({
+      sql: `SELECT id FROM "User" WHERE email = ?`,
+      args: ["admin@katirtifaki.net"],
     });
 
-    if (!existing) {
-      const hash = await hashPassword("admin123");
-      await prisma.user.create({
-        data: {
-          email: "admin@katirtifaki.net",
-          password: hash,
-          name: "Admin",
-          role: "admin",
-          isActive: true,
-        },
+    const hash = await bcryptjs.hash("admin123", 12);
+    const now = new Date().toISOString();
+
+    if (existing.rows.length === 0) {
+      const id = crypto.randomUUID();
+      await db.execute({
+        sql: `INSERT INTO "User" (id, email, password, name, role, isActive, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [id, "admin@katirtifaki.net", hash, "Admin", "admin", 1, now, now],
       });
     } else {
-      // Update password and ensure active
-      const hash = await hashPassword("admin123");
-      await prisma.user.update({
-        where: { email: "admin@katirtifaki.net" },
-        data: { password: hash, isActive: true, role: "admin" },
+      await db.execute({
+        sql: `UPDATE "User" SET password = ?, isActive = 1, role = 'admin', updatedAt = ? WHERE email = ?`,
+        args: [hash, now, "admin@katirtifaki.net"],
       });
     }
 
@@ -141,9 +128,6 @@ export async function GET() {
     });
   } catch (err) {
     console.error("Setup error:", err);
-    return NextResponse.json(
-      { success: false, error: String(err) },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
   }
 }
