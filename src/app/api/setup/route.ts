@@ -13,8 +13,8 @@ export async function GET() {
   const db = createClient({ url, authToken });
 
   try {
-    await db.executeMultiple(`
-      CREATE TABLE IF NOT EXISTS "User" (
+    const tables = [
+      `CREATE TABLE IF NOT EXISTS "User" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "email" TEXT NOT NULL UNIQUE,
         "password" TEXT NOT NULL,
@@ -24,8 +24,8 @@ export async function GET() {
         "subscriptionEnd" DATETIME,
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-      );
-      CREATE TABLE IF NOT EXISTS "Project" (
+      )`,
+      `CREATE TABLE IF NOT EXISTS "Project" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "name" TEXT NOT NULL,
         "il" TEXT NOT NULL DEFAULT '',
@@ -44,8 +44,8 @@ export async function GET() {
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE
-      );
-      CREATE TABLE IF NOT EXISTS "Owner" (
+      )`,
+      `CREATE TABLE IF NOT EXISTS "Owner" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "name" TEXT NOT NULL,
         "fatherName" TEXT NOT NULL DEFAULT '',
@@ -56,24 +56,24 @@ export async function GET() {
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE
-      );
-      CREATE TABLE IF NOT EXISTS "Share" (
+      )`,
+      `CREATE TABLE IF NOT EXISTS "Share" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "pay" INTEGER NOT NULL,
         "payda" INTEGER NOT NULL,
         "ownerId" TEXT NOT NULL,
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("ownerId") REFERENCES "Owner"("id") ON DELETE CASCADE
-      );
-      CREATE TABLE IF NOT EXISTS "Attorney" (
+      )`,
+      `CREATE TABLE IF NOT EXISTS "Attorney" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "name" TEXT NOT NULL,
         "notaryInfo" TEXT NOT NULL DEFAULT '',
         "projectId" TEXT NOT NULL,
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE
-      );
-      CREATE TABLE IF NOT EXISTS "Section" (
+      )`,
+      `CREATE TABLE IF NOT EXISTS "Section" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "order" INTEGER NOT NULL DEFAULT 0,
         "blokNo" TEXT NOT NULL DEFAULT '',
@@ -88,8 +88,8 @@ export async function GET() {
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE
-      );
-      CREATE TABLE IF NOT EXISTS "SectionOwner" (
+      )`,
+      `CREATE TABLE IF NOT EXISTS "SectionOwner" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "sectionId" TEXT NOT NULL,
         "ownerId" TEXT NOT NULL,
@@ -97,10 +97,13 @@ export async function GET() {
         UNIQUE("sectionId", "ownerId"),
         FOREIGN KEY ("sectionId") REFERENCES "Section"("id") ON DELETE CASCADE,
         FOREIGN KEY ("ownerId") REFERENCES "Owner"("id") ON DELETE CASCADE
-      );
-    `);
+      )`,
+    ];
 
-    // Check if admin exists
+    for (const sql of tables) {
+      await db.execute(sql);
+    }
+
     const existing = await db.execute({
       sql: `SELECT id FROM "User" WHERE email = ?`,
       args: ["admin@katirtifaki.net"],
