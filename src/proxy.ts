@@ -7,7 +7,7 @@ const secret = new TextEncoder().encode(
 
 const publicPaths = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/api/setup"];
 
-export async function proxy(req: NextRequest) {
+export default async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const isPublic = publicPaths.some((p) => pathname.startsWith(p));
